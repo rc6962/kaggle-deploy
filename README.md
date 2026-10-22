@@ -1,157 +1,213 @@
 # Kaggle LLM Deploy Scripts
 
-Free, copy-paste deploy scripts for running LLMs on Kaggle's free GPU tier (T4×2, 30 hrs/week).
+Free, copy-paste deploy scripts for running **uncensored LLMs** on Kaggle's free GPU tier (T4×2, 30 hrs/week).
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Prerequisites
-- Kaggle account (free)
-- Phone/PC browser for Kaggle UI
+### Prerequisites (one time)
+1. **Kaggle account** → kaggle.com → Sign up
+2. **Kaggle API token** → kaggle.com/settings → "Create New Token" → downloads `kaggle.json`
+3. **Phone/PC browser** (Kaggle UI doesn't work well in Termux)
 
-### 2. Create Kaggle Dataset for Model Storage (one-time)
-```
-kaggle.com/datasets → New Dataset → Name: "models" → Private → Save
-```
-Note your dataset slug: `yourusername/models`
-
-### 3. Upload Models to Dataset (one-time, from any machine with Python)
+### Option 1: One-Command CLI (Easiest)
 ```bash
-pip install -U 'huggingface_hub[cli]'
+# Install endpoint CLI
+pip install git+https://github.com/myth-tools/endpoint.git
 
-# Qwen3.8-27B-abliterated (BEST for Kaggle)
-huggingface-cli download huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF \
-  --include '*UD-DW-Q4_K_M.gguf' --local-dir ./models
+# Add your Kaggle token
+mkdir -p ~/.kaggle
+cat > ~/.kaggle/kaggle.json << 'EOF'
+{"username":"YOUR_USERNAME","key":"YOUR_API_KEY"}
+EOF
+chmod 600 ~/.kaggle/kaggle.json
 
-# Dolphin-24B (optional)
-huggingface-cli download bartowski/cognitivecomputations_Dolphin3.0-Mistral-24B-GGUF \
-  --include '*Q4_K_M.gguf' --local-dir ./models
-
-# Gemma-31B QAT abliterated (optional)
-huggingface-cli download huihui-ai/Huihui-gemma-4-31B-it-qat-q4_0-unquantized-abliterated-GGUF \
-  --include '*Q4_K.gguf' --local-dir ./models
-
-# Upload to Kaggle dataset
-kaggle datasets version -p ./models -m "add models"
+# Deploy with one command
+endpoint -g boot
+# → Interactive model picker
+# → Deploys to Kaggle T4×2
+# → Gives you Cloudflare tunnel URL (e.g., https://abc-123.trycloudflare.com/v1)
 ```
 
-## Scripts
-
-### `kaggle_tahsine_setup.py` — Full Pipeline (Qwen 32B, etc.)
-**Best for:** Serving your own models with full control
-
-```python
-# 1. Kaggle → New Notebook → GPU T4×2, Internet ON
-# 2. Add Data → yourusername/models → mount at /kaggle/input/models
-# 3. Paste this entire script into a cell, edit MODEL_PATH, run
-```
-
-**Features:**
-- Builds llama.cpp with CUDA for T4 (compute 75)
-- Loads model from your dataset (persists across sessions)
-- OpenAI-compatible server on port 8080
-- Cloudflare Quick Tunnel (public `trycloudflare.com` URL)
-- STOP cell preserves GPU quota
-
-### `kaggle_bugtrace_setup.py` — Single Cell All-in-One
-**Best for:** Fastest deploy, zero config
-
-```python
-# 1. Kaggle → New Notebook → GPU T4×2, Internet ON
-# 2. Add Data → your dataset with BugTraceAI model
-# 3. Paste entire script, edit MODEL_REPO/MODEL_FILE/DATASET_SLUG, run
-```
-
-**Features:**
-- Auto libcuda fix
-- CUDA llama-cpp-python install
-- Model load + warm-up
-- Server + tunnel in one cell
-
-### `kaggle_horde_worker.py` — AI Horde Worker
-**Best for:** Earning kudos for your API key (faster Horde requests)
-
-```python
-# 1. Kaggle → New Notebook → GPU T4×2, Internet ON
-# 2. Paste script, verify API_KEY, run
-# 3. Worker runs until Ctrl+C or 9h session limit
-```
-
-**Features:**
-- Downloads lightweight models (Qwen 3B, Llama 1B)
-- Runs Haidra bridge_alchemy.py
-- Earns kudos → priority queue for your requests
-
-### `ep.py` — Endpoint CLI Wrapper (myth-tools/endpoint)
-**Best for:** Managing endpoints from your phone terminal
+### Option 2: Kaggle Notebook (Copy-Paste)
+1. Go to **kaggle.com/code** → **New Notebook**
+2. **Settings** → **GPU: T4 x2** → **Internet: ON** → **Save**
+3. **Add Data** → **Your Datasets** → Select a dataset with models (or let script download)
+4. Copy **ONE** of these scripts into a cell and run:
 
 ```bash
-# Install once
-python3 ep.py install
+# Best overall (recommended)
+python3 deploy.py rvn
 
-# Then use from anywhere
-ep boot          # Interactive GPU/model picker
-ep register      # Optional: Cloudflare Worker proxy
-ep logs          # View logs
-ep stop          # Stop endpoint
-ep status        # Check status
+# Best Gemma (highest W10 score)
+python3 deploy.py gemma31
+
+# Original pipelines
+python3 deploy.py tahsine
+python3 deploy.py bugtrace
+python3 deploy.py horde
 ```
 
-### `deploy.py` — Unified Launcher
+### Option 3: Raw Script URLs (Direct Copy-Paste)
+```
+https://raw.githubusercontent.com/rc6962/kaggle-deploy/master/kaggle_rvn_qwen38.py
+https://raw.githubusercontent.com/rc6962/kaggle-deploy/master/kaggle_gemma31_deckard.py
+https://raw.githubusercontent.com/rc6962/kaggle-deploy/master/kaggle_tahsine_setup.py
+https://raw.githubusercontent.com/rc6962/kaggle-deploy/master/kaggle_bugtrace_setup.py
+https://raw.githubusercontent.com/rc6962/kaggle-deploy/master/kaggle_horde_worker.py
+```
+
+---
+
+## 📦 Available Models
+
+| Command | Model | Size | UGI Scores | Notes |
+|---------|-------|------|------------|-------|
+| `rvn` | **Qwen3.8-27B RVN Heretic** | 16.5 GB | W10 ~7-8, Hazardous ~3-4 | **Best balance** — fits T4×2 perfectly, 0-1% refusals |
+| `gemma31` | **Gemma-4-31B DECKARD HERETIC** | 18 GB | **W10 9.2, W10-Direct 10, Hazardous 4.7** | Best Gemma, needs CPU offload |
+| `tahsine` | Qwen 32B / various | 22 GB | Varies | Full 3-notebook pipeline |
+| `bugtrace` | BugTraceAI Apex G4 26B | 14 GB | — | Fastest single cell |
+| `horde` | AI Horde Worker | — | — | Earns kudos for your API key |
+
+---
+
+## 📊 UGI Scores Explained (Layman's Terms)
+
+| Score | What It Means | 0 = | 10 = |
+|-------|---------------|-----|------|
+| **Hazardous** | "Will it tell me dangerous stuff?" | Refuses all danger | Answers all danger |
+| **W/10 (Willingness)** | "How far can I push it?" | Refuses immediately | Never refuses |
+| **W10-Direct** | Outright refusal ("I can't help") | Always says no | Never says no |
+| **W10-Adherence** | Follows your instruction vs. lecturing | Ignores you, lectures | Does exactly what asked |
+| **Entertainment** | Adult content, dark humor | PG, sanitized | Unfiltered |
+| **SocPol** | Hot political takes | Evasive, neutral | Opinionated, detailed |
+
+**High scores = model does what you ask without moralizing.**
+
+---
+
+## 🤖 Telegram Bot (Remote Deploy from Anywhere)
+
+### Setup (run on a VPS/always-on machine)
 ```bash
-python3 deploy.py list       # Show all
-python3 deploy.py tahsine    # Run tahsine script
-python3 deploy.py bugtrace   # Run bugtrace script
-python3 deploy.py horde      # Run horde script
-python3 deploy.py endpoint   # Run endpoint CLI
+git clone https://github.com/rc6962/kaggle-deploy.git
+cd kaggle-deploy
+pip install python-telegram-bot
+
+# Configure
+export BOT_TOKEN="your_bot_token_from_@BotFather"
+export ADMIN_CHAT_ID="your_telegram_chat_id"
+
+# Run
+python3 tg_deploy_bot.py
 ```
 
-## Model Recommendations for Kaggle T4×2 (32GB VRAM)
+### Usage (from Telegram)
+```
+/deploy rvn          # Deploy Qwen3.8-27B RVN
+/deploy gemma31      # Deploy Gemma-4-31B DECKARD
+/deploy tahsine      # Deploy tahsine pipeline
+/deploy bugtrace     # Deploy BugTraceAI
+/deploy horde        # Start AI Horde worker
+/status              # Show running deploys
+/stop                # Stop all
+/help                # Show help
+```
 
-| Model | VRAM | Quality | Uncensored | Dataset Path |
-|-------|------|---------|------------|--------------|
-| **Qwen3.8-27B-abliterated** | 16.6 GB | ⭐⭐⭐⭐⭐ | ~19% refusals | `huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF/UD-DW-Q4_K_M.gguf` |
-| **Dolphin-3.0-Mistral-24B** | 14.3 GB | ⭐⭐⭐⭐ | ~5% refusals | `bartowski/cognitivecomputations_Dolphin3.0-Mistral-24B-GGUF/Q4_K_M.gguf` |
-| **Gemma-4-31B-abliterated QAT** | 18.7 GB | ⭐⭐⭐⭐ | 0% hard refusals | `huihui-ai/Huihui-gemma-4-31B-it-qat-q4_0-unquantized-abliterated-GGUF/Q4_K.gguf` |
-| BugTraceAI-Apex-G4-26B | ~15 GB | ⭐⭐⭐⭐ | Uncensored | `TheBloke/BugTraceAI-Apex-G4-26B-GGUF/Q4_K_M.gguf` |
+---
 
-## Kubernetes-Style Persistent Deploy (Advanced)
-
-For 24/7 serving without Kaggle's 9h/30h limits:
+## 🌐 Web UI (Run on Phone)
 
 ```bash
-# RunPod (cheapest 24/7)
-# 1. runpod.io → Pod → A100 40GB ($0.39/hr) or 2×A6000 48GB ($0.29/hr)
-# 2. Same script works, just change GPU count
-
-# Vast.ai (cheapest spot)
-# vast.ai → search "RTX 3090/4090" → $0.15-0.30/hr
+cd ~/kaggle-deploy
+python3 web_ui.py
+# Open http://localhost:5000 in phone browser
 ```
 
-## Troubleshooting
+Buttons for: Deploy RVN / Gemma31 / Tahsine / BugTrace / Horde / Status / Stop
 
-| Issue | Fix |
-|-------|-----|
-| `CUDA error` | Ensure GPU T4×2 selected in notebook settings |
-| `OOM` | Reduce `-ngl` (GPU layers) or use smaller model |
-| Tunnel URL not found | Wait longer, check `/kaggle/working/tunnel.log` |
-| Session dies at 9h | Hard limit — restart notebook |
-| Quota exhausted | 30 hrs/week resets Monday — run STOP cell always |
+---
 
-## Automation Ideas (PRs Welcome)
+## 🔧 After Deployment
 
-- [ ] GitHub Action: Auto-test scripts on schedule
-- [ ] Telegram bot: `/deploy tahsine` → creates Kaggle notebook via API
-- [ ] Cron: Auto-push model updates to dataset weekly
-- [ ] LiteLLM config generator: `deploy.py litellm` → outputs `config.yaml`
-- [ ] Health check endpoint: `/health` + `/metrics` for monitoring
+### Get Your Endpoint URL
+After script runs, you'll see:
+```
+🎉 DEPLOYED! Your OpenAI-compatible endpoint:
+  https://abc-123-def.trycloudflare.com/v1
+```
 
-## License
+### Test It
+```bash
+curl https://abc-123-def.trycloudflare.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"local","messages":[{"role":"user","content":"Hello"}],"max_tokens":50}'
+```
 
-MIT — Use freely, contribute back.
+### Use in Hermes (Already Configured)
+```bash
+hermes chat -q "Your prompt" --provider custom:AI\ Horde -m "Qwen3.8-27b-Uncensored"
+```
 
-## Links
+### Use in LiteLLM / Open WebUI / Cursor
+```bash
+# Generate LiteLLM config
+python3 gen_litellm.py https://abc-123-def.trycloudflare.com/v1 Qwen3.8-27b-Uncensored
 
-- **Repo:** https://github.com/rc6962/kaggle-deploy
-- **Raw scripts:** https://raw.githubusercontent.com/rc6962/kaggle-deploy/master/
-- **AI Horde:** https://aihorde.net (get API key, earn kudos)
-- **Kaggle GPU:** https://kaggle.com/code (30 hrs/week free T4×2)
+# Run LiteLLM proxy
+docker run -p 4000:4000 -v $(pwd)/litellm_config.yaml:/app/config.yaml ghcr.io/berriai/litellm:main-latest --config /app/config.yaml
+# Now use http://localhost:4000/v1 with Bearer ***
+```
+
+---
+
+## ⚠️ Important: Quota Management
+
+**ALWAYS stop when done:**
+```bash
+# Via CLI
+endpoint stop
+
+# Via script (run in Kaggle notebook)
+import subprocess
+subprocess.run("pkill -f 'llama-server|cloudflared'", shell=True)
+```
+
+Kaggle free tier: **30 GPU-hours/week**, **9-hour session max**. Quota resets Monday UTC.
+
+---
+
+## 📁 Repository Structure
+
+```
+kaggle-deploy/
+├── deploy.py                    # Unified launcher
+├── kaggle_rvn_qwen38.py         # Qwen3.8-27B RVN (recommended)
+├── kaggle_gemma31_deckard.py    # Gemma-4-31B DECKARD (best Gemma)
+├── kaggle_tahsine_setup.py      # Original tahsine pipeline
+├── kaggle_bugtrace_setup.py     # BugTraceAI single cell
+├── kaggle_horde_worker.py       # AI Horde worker
+├── ep.py                        # endpoint CLI wrapper
+├── gen_litellm.py               # LiteLLM config generator
+├── tg_deploy_bot.py             # Telegram bot
+├── web_ui.py                    # Phone web UI
+└── README.md                    # This file
+```
+
+---
+
+## 🛠 Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `CUDA error` | Ensure GPU T4×2 selected, Internet ON |
+| `OOM` | Use `rvn` (16.5GB), reduce `-ngl` to 80, or use smaller model |
+| No tunnel URL | Wait 2 min, check `/kaggle/working/tunnel.log` |
+| 9h session limit | Hard cap — restart notebook |
+| Quota exhausted | 30 hrs/week resets Monday UTC |
+| Model not found | Check HF repo/file name matches exactly |
+
+---
+
+## 📝 License
+
+MIT — Use responsibly. These models have reduced safety guardrails.
