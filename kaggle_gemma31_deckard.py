@@ -19,11 +19,22 @@ print("="*60)
 
 # 1. Build llama.cpp with CUDA for T4 (compute capability 75)
 if not os.path.exists("/kaggle/working/llama.cpp/build/bin/llama-server"):
+    print("Applying Kaggle CUDA driver symlink fix...")
+    subprocess.run("ln -sf /usr/local/nvidia/lib64/libcuda.so /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true", shell=True)
+    subprocess.run("ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so.1 /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true", shell=True)
+    subprocess.run("ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so.1 /usr/lib/x86_64-linux-gnu/libcuda.so 2>/dev/null || true", shell=True)
+
     print("Building llama.cpp...")
-    subprocess.run("cd /kaggle/working && git clone --depth 1 https://github.com/ggml-org/llama.cpp", shell=True, check=True)
+    subprocess.run("rm -rf /kaggle/working/llama.cpp && cd /kaggle/working && git clone --depth 1 https://github.com/ggml-org/llama.cpp", shell=True, check=True)
     subprocess.run(
         "cd /kaggle/working/llama.cpp && "
-        "cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=75 && "
+        "cmake -B build "
+        "-DGGML_CUDA=ON "
+        "-DGGML_NATIVE=OFF "
+        "-DCMAKE_BUILD_TYPE=Release "
+        "-DCMAKE_CUDA_ARCHITECTURES=75 "
+        "-DCMAKE_PREFIX_PATH=/usr/local/nvidia "
+        "-DCUDAToolkit_ROOT=/usr/local/cuda && "
         "cmake --build build --config Release -j4 --target llama-server llama-cli",
         shell=True, check=True
     )
