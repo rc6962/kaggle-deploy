@@ -43,15 +43,19 @@ print("✓ llama.cpp built")
 
 # 2. Download model + chat template
 print("Downloading model...")
-subprocess.run(
-    f"huggingface-cli download {MODEL_REPO} --include {MODEL_FILE} --include {CHAT_TEMPLATE} --local-dir /kaggle/working/models",
-    shell=True, check=True
-)
-model_path = f"/kaggle/working/models/{MODEL_REPO}/{MODEL_FILE}"
-template_path = f"/kaggle/working/models/{MODEL_REPO}/{CHAT_TEMPLATE}"
-assert os.path.exists(model_path), f"Model not found: {model_path}"
-assert os.path.exists(template_path), f"Chat template not found: {template_path}"
+os.makedirs("/kaggle/working/models", exist_ok=True)
+try:
+    from huggingface_hub import hf_hub_download
+except ImportError:
+    subprocess.run("pip install -q -U huggingface_hub", shell=True, check=True)
+    from huggingface_hub import hf_hub_download
+
+print(f"Downloading {MODEL_FILE}...")
+model_path = hf_hub_download(repo_id=MODEL_REPO, filename=MODEL_FILE, local_dir="/kaggle/working/models")
 print(f"✓ Model: {model_path}")
+
+print(f"Downloading {CHAT_TEMPLATE}...")
+template_path = hf_hub_download(repo_id=MODEL_REPO, filename=CHAT_TEMPLATE, local_dir="/kaggle/working/models")
 print(f"✓ Template: {template_path}")
 
 # 3. Start server
