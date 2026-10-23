@@ -9,8 +9,9 @@ import os, subprocess, time, urllib.request, json, signal, re
 
 # ========== CONFIG ==========
 MODEL_REPO = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF"
-MODEL_FILE = "RVN-Q4_K_M.gguf"          # 16.5 GB, best quality/size
-CHAT_TEMPLATE = "chat_template.jinja"   # REQUIRED for Qwen3.8 tool/function calling
+MODEL_FILE = "RVN-Q4_K_M.gguf"  # 16.5 GB, best balance
+CHAT_TEMPLATE = "chat_template.jinja"
+API_KEY = os.environ.get("ENDPOINT_API_KEY", "sk-balls-uncensored")
 # =============================
 
 print("="*60)
@@ -62,13 +63,16 @@ print(f"✓ Template: {template_path}")
 print("Starting server...")
 subprocess.run("pkill -f llama-server; sleep 2", shell=True)
 log = open("/kaggle/working/server.log", "w")
-server = subprocess.Popen([
+cmd = [
     "/kaggle/working/llama.cpp/build/bin/llama-server",
     "-m", model_path,
     "--chat-template-file", template_path,
     "--host", "0.0.0.0", "--port", "8080",
     "-c", "16384", "-ngl", "99", "--parallel", "2", "--jinja"
-], stdout=log, stderr=log)
+]
+if API_KEY:
+    cmd.extend(["--api-key", API_KEY])
+server = subprocess.Popen(cmd, stdout=log, stderr=log)
 print(f"Server PID: {server.pid}")
 
 # 4. Wait for ready
@@ -98,7 +102,7 @@ if not os.path.exists("/kaggle/working/cloudflared"):
     )
 subprocess.run("pkill -f cloudflared; sleep 1", shell=True)
 tlog = open("/kaggle/working/tunnel.log", "w")
-subprocess.Popen([
+tunnel_proc = subprocess.Popen([
     "/kaggle/working/cloudflared", "tunnel", "--url", "http://localhost:8080", "--no-autoupdate"
 ], stdout=tlog, stderr=tlog)
 
@@ -117,13 +121,17 @@ if url:
     print("🎉 DEPLOYED! Your OpenAI-compatible endpoint:")
     print(f"  {url}/v1")
     print("="*60)
+    auth_header = f' -H "Authorization: Bearer {API_KEY}"' if API_KEY else ''
     print("TEST:")
-    print(f'curl {url}/v1/chat/completions -H "Content-Type: application/json" -d \'{{"model":"local","messages":[{{"role":"user","content":"Hello"}}]}}\'')
+    print(f'curl {url}/v1/chat/completions{auth_header} -H "Content-Type: application/json" -d \'{{"model":"local","messages":[{{"role":"user","content":"Hello"}}]}}\'')
     print("="*60)
-    print("Holding server process open (Ctrl+C to stop)...")
+    print("Holding processes open (Ctrl+C to stop)...")
     try:
-        server.wait()
+        while server.poll() is None and tunnel_proc.poll() is None:
+            time.sleep(2)
     except KeyboardInterrupt:
         pass
+    finally:
+        subprocess.run("pkill -f 'llama-server|cloudflared'", shell=True)
 else:
     print("URL not found — check /kaggle/working/tunnel.log")
