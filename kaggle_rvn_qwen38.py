@@ -120,7 +120,10 @@ if url:
     print("TEST:")
     print(f'curl {url}/v1/chat/completions -H "Content-Type: application/json" -d \'{{"model":"local","messages":[{{"role":"user","content":"Hello"}}]}}\'')
     print("="*60)
-    print("In Hermes: --provider custom:AI\\ Horde -m \"Qwen3.8-27b-Uncensored\"")
-    print("="*60)
+    print("Holding server process open (Ctrl+C to stop)...")
+    try:
+        server.wait()
+    except KeyboardInterrupt:
+        pass
 else:
     print("URL not found — check /kaggle/working/tunnel.log")
