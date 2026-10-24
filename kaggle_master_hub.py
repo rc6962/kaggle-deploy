@@ -48,22 +48,26 @@ API_KEY = os.environ.get("ENDPOINT_API_KEY", "sk-balls-uncensored")
 
 # 1. Use pre-compiled binary from Kaggle dataset if available, otherwise build
 DATASET_BIN = "/kaggle/input/llama-cpp-sm75-bin"
-LLAMA_ZIP = f"{DATASET_BIN}/llama.cpp.zip"
-# Extract zipped dataset if binary not already in working dir
-if not os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
-    if os.path.exists(LLAMA_ZIP):
-        print("Found zipped llama.cpp in dataset — extracting...")
-        subprocess.run(f"cd {WORK_DIR} && unzip -q -o {LLAMA_ZIP}", shell=True, check=True)
-        print("✓ Extracted pre-compiled binaries")
-    elif os.path.exists(f"{DATASET_BIN}/llama.cpp/build/bin/llama-server"):
-        print("Found pre-compiled llama.cpp in dataset — copying...")
+import glob
+print(f"Contents of /kaggle/input/: {os.listdir('/kaggle/input/') if os.path.exists('/kaggle/input/') else 'NOT FOUND'}")
+if os.path.exists(DATASET_BIN):
+    print(f"Contents of {DATASET_BIN}: {os.listdir(DATASET_BIN)}")
+    found_bins = glob.glob(f"{DATASET_BIN}/**/llama-server", recursive=True)
+    print(f"Found llama-server binaries: {found_bins}")
+    if found_bins:
+        bin_dir = os.path.dirname(found_bins[0])
+        print(f"Using binary from: {bin_dir}")
         os.makedirs(f"{WORK_DIR}/llama.cpp/build/bin", exist_ok=True)
-        subprocess.run(f"cp -r {DATASET_BIN}/llama.cpp/build/bin/* {WORK_DIR}/llama.cpp/build/bin/", shell=True, check=True)
-        print("✓ Copied pre-compiled binaries")
+        subprocess.run(f"cp -r {bin_dir}/* {WORK_DIR}/llama.cpp/build/bin/", shell=True, check=True)
+        print("Copied pre-compiled binaries")
+cf_paths = glob.glob(f"{DATASET_BIN}/**/cloudflared", recursive=True)
+if cf_paths and not os.path.exists(f"{WORK_DIR}/cloudflared"):
+    subprocess.run(f"cp {cf_paths[0]} {WORK_DIR}/cloudflared && chmod +x {WORK_DIR}/cloudflared", shell=True, check=True)
+    print("Copied pre-compiled cloudflared")
 
 if os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
-    print("✓ llama.cpp ready (pre-compiled, skipping build)")
-elif not os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
+    print("llama.cpp ready (pre-compiled, skipping build)")
+else:
     print("Applying CUDA symlink fix & building llama.cpp...")
     subprocess.run("ln -sf /usr/local/nvidia/lib64/libcuda.so /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true", shell=True)
     subprocess.run("ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so.1 /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true", shell=True)
