@@ -46,8 +46,14 @@ CATALOG = {
 CURRENT_MODEL = "rvn"
 API_KEY = os.environ.get("ENDPOINT_API_KEY", "sk-balls-uncensored")
 
-# 1. Build llama.cpp if missing
-if not os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
+# 1. Use pre-compiled binary from Kaggle dataset if available, otherwise build
+DATASET_BIN = "/kaggle/input/llama-cpp-sm75-bin"
+if os.path.exists(f"{DATASET_BIN}/llama.cpp/build/bin/llama-server"):
+    print("Found pre-compiled llama.cpp in dataset — skipping 20min build!")
+    os.makedirs(f"{WORK_DIR}/llama.cpp/build/bin", exist_ok=True)
+    subprocess.run(f"cp -r {DATASET_BIN}/llama.cpp/build/bin/* {WORK_DIR}/llama.cpp/build/bin/", shell=True, check=True)
+    print("✓ Copied pre-compiled binaries")
+elif not os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
     print("Applying CUDA symlink fix & building llama.cpp...")
     subprocess.run("ln -sf /usr/local/nvidia/lib64/libcuda.so /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true", shell=True)
     subprocess.run("ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so.1 /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true", shell=True)
@@ -60,7 +66,12 @@ if not os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
         "cmake --build build --config Release -j4 --target llama-server llama-cli",
         shell=True, check=True
     )
-print("✓ llama.cpp built & ready")
+print("✓ llama.cpp ready")
+
+# Use pre-compiled cloudflared if available
+if os.path.exists(f"{DATASET_BIN}/cloudflared") and not os.path.exists(f"{WORK_DIR}/cloudflared"):
+    subprocess.run(f"cp {DATASET_BIN}/cloudflared {WORK_DIR}/cloudflared && chmod +x {WORK_DIR}/cloudflared", shell=True, check=True)
+    print("✓ Copied pre-compiled cloudflared")
 
 # Ensure huggingface_hub is installed
 try:
