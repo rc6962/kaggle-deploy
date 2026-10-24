@@ -50,21 +50,21 @@ API_KEY = os.environ.get("ENDPOINT_API_KEY", "sk-balls-uncensored")
 DATASET_BIN = "/kaggle/input/datasets/ballsapp/llama-cpp-sm75-bin"
 LLAMA_BIN = f"{DATASET_BIN}/llama.cpp/build/bin/llama-server"
 if os.path.exists(LLAMA_BIN) and not os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
-    print("Found pre-compiled llama.cpp in dataset — copying...")
+    print("Found pre-compiled llama.cpp in dataset — copying...", flush=True)
     os.makedirs(f"{WORK_DIR}/llama.cpp/build/bin", exist_ok=True)
     subprocess.run(f"cp -r {DATASET_BIN}/llama.cpp/build/bin/* {WORK_DIR}/llama.cpp/build/bin/", shell=True, check=True)
     subprocess.run(f"chmod +x {WORK_DIR}/llama.cpp/build/bin/llama-server {WORK_DIR}/llama.cpp/build/bin/llama-cli", shell=True)
-    print("Copied pre-compiled binaries")
+    print("Copied pre-compiled binaries", flush=True)
 # Copy cloudflared
 CF_PATH = f"{DATASET_BIN}/cloudflared"
 if os.path.exists(CF_PATH) and not os.path.exists(f"{WORK_DIR}/cloudflared"):
     subprocess.run(f"cp {CF_PATH} {WORK_DIR}/cloudflared && chmod +x {WORK_DIR}/cloudflared", shell=True, check=True)
-    print("Copied pre-compiled cloudflared")
+    print("Copied pre-compiled cloudflared", flush=True)
 
 if os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
-    print("llama.cpp ready (pre-compiled, skipping build)")
+    print("llama.cpp ready (pre-compiled, skipping build)", flush=True)
 else:
-    print("Applying CUDA symlink fix & building llama.cpp...")
+    print("Applying CUDA symlink fix & building llama.cpp...", flush=True)
     subprocess.run("ln -sf /usr/local/nvidia/lib64/libcuda.so /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true", shell=True)
     subprocess.run("ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so.1 /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true", shell=True)
     subprocess.run("ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so.1 /usr/lib/x86_64-linux-gnu/libcuda.so 2>/dev/null || true", shell=True)
@@ -76,12 +76,12 @@ else:
         "cmake --build build --config Release -j4 --target llama-server llama-cli",
         shell=True, check=True
     )
-print("✓ llama.cpp ready")
+print("✓ llama.cpp ready", flush=True)
 
 # Use pre-compiled cloudflared if available
 if os.path.exists(f"{DATASET_BIN}/cloudflared") and not os.path.exists(f"{WORK_DIR}/cloudflared"):
     subprocess.run(f"cp {DATASET_BIN}/cloudflared {WORK_DIR}/cloudflared && chmod +x {WORK_DIR}/cloudflared", shell=True, check=True)
-    print("✓ Copied pre-compiled cloudflared")
+    print("✓ Copied pre-compiled cloudflared", flush=True)
 
 # Ensure huggingface_hub is installed
 try:
@@ -97,14 +97,14 @@ def start_model(mkey):
     if mkey not in CATALOG:
         return False, "Unknown model"
     cfg = CATALOG[mkey]
-    print(f"\n[Switching to {mkey}] Downloading {cfg['file']} if needed...")
+    print(f"\n[Switching to {mkey}] Downloading {cfg['file']} if needed...", flush=True)
     mpath = hf_hub_download(repo_id=cfg["repo"], filename=cfg["file"], local_dir=MODELS_DIR)
     tpath = None
     if cfg["template"]:
         tpath = hf_hub_download(repo_id=cfg["repo"], filename=cfg["template"], local_dir=MODELS_DIR)
     
     if SERVER_PROC:
-        print("Stopping current llama-server...")
+        print("Stopping current llama-server...", flush=True)
         subprocess.run("pkill -f llama-server; sleep 2", shell=True)
     
     cmd = [
@@ -122,7 +122,7 @@ def start_model(mkey):
     slog = open(f"{WORK_DIR}/server.log", "w")
     SERVER_PROC = subprocess.Popen(cmd, stdout=slog, stderr=slog)
     CURRENT_MODEL = mkey
-    print(f"✓ Started {mkey} on PID {SERVER_PROC.pid}")
+    print(f"✓ Started {mkey} on PID {SERVER_PROC.pid}", flush=True)
     return True, f"Running {mkey}"
 
 # Start initial model
@@ -152,23 +152,23 @@ for _ in range(30):
         break
 
 if url:
-    print("\n" + "="*60)
-    print("🎉 DEPLOYED MASTER HUB!")
-    print(f"Live URL: {url}/v1")
-    print("="*60)
+    print("\n" + "="*60, flush=True)
+    print("🎉 DEPLOYED MASTER HUB!", flush=True)
+    print(f"Live URL: {url}/v1", flush=True)
+    print("="*60, flush=True)
 
 # Keep supervision loop
 try:
     while True:
         time.sleep(2)
         if SERVER_PROC and SERVER_PROC.poll() is not None:
-            print("Restarting server...")
+            print("Restarting server...", flush=True)
             start_model(CURRENT_MODEL)
         if TUNNEL_PROC and TUNNEL_PROC.poll() is not None:
-            print("Restarting tunnel...")
+            print("Restarting tunnel...", flush=True)
             TUNNEL_PROC = subprocess.Popen([
                 f"{WORK_DIR}/cloudflared", "tunnel", "--url", "http://localhost:8080", "--no-autoupdate"
             ], stdout=tlog, stderr=tlog)
 except KeyboardInterrupt:
-    print("Halting...")
+    print("Halting...", flush=True)
     subprocess.run("pkill -f 'llama-server|cloudflared'", shell=True)
