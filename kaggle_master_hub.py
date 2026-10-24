@@ -53,6 +53,7 @@ if os.path.exists(LLAMA_BIN) and not os.path.exists(f"{WORK_DIR}/llama.cpp/build
     print("Found pre-compiled llama.cpp in dataset — copying...")
     os.makedirs(f"{WORK_DIR}/llama.cpp/build/bin", exist_ok=True)
     subprocess.run(f"cp -r {DATASET_BIN}/llama.cpp/build/bin/* {WORK_DIR}/llama.cpp/build/bin/", shell=True, check=True)
+    subprocess.run(f"chmod +x {WORK_DIR}/llama.cpp/build/bin/llama-server {WORK_DIR}/llama.cpp/build/bin/llama-cli", shell=True)
     print("Copied pre-compiled binaries")
 # Copy cloudflared
 CF_PATH = f"{DATASET_BIN}/cloudflared"
