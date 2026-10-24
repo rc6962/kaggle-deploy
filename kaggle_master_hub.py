@@ -47,44 +47,17 @@ CURRENT_MODEL = "rvn"
 API_KEY = os.environ.get("ENDPOINT_API_KEY", "sk-balls-uncensored")
 
 # 1. Use pre-compiled binary from Kaggle dataset if available, otherwise build
-# Find the dataset directory (Kaggle mounts datasets at various paths)
-DATASET_BIN = None
-for root, dirs, files in os.walk("/kaggle/input"):
-    if "llama-server" in files or any("llama-server" in f for f in files):
-        DATASET_BIN = root
-        break
-    # Also check if any subdirectory contains llama-server
-    for d in dirs:
-        candidate = os.path.join(root, d)
-        if os.path.exists(os.path.join(candidate, "llama.cpp", "build", "bin", "llama-server")):
-            DATASET_BIN = candidate
-            break
-    if DATASET_BIN:
-        break
-if not DATASET_BIN:
-    # Fallback: try common paths
-    for candidate in ["/kaggle/input/llama-cpp-sm75-bin", "/kaggle/input/datasets/llama-cpp-sm75-bin", "/kaggle/input/ballsapp/llama-cpp-sm75-bin"]:
-        if os.path.exists(candidate):
-            DATASET_BIN = candidate
-            break
-if not DATASET_BIN:
-    DATASET_BIN = "/kaggle/input/llama-cpp-sm75-bin"  # default
-print(f"Using DATASET_BIN: {DATASET_BIN}")
-import glob
-print(f"Contents of /kaggle/input/: {os.listdir('/kaggle/input/') if os.path.exists('/kaggle/input/') else 'NOT FOUND'}")
-if os.path.exists(DATASET_BIN):
-    print(f"Contents of {DATASET_BIN}: {os.listdir(DATASET_BIN)}")
-    found_bins = glob.glob(f"{DATASET_BIN}/**/llama-server", recursive=True)
-    print(f"Found llama-server binaries: {found_bins}")
-    if found_bins:
-        bin_dir = os.path.dirname(found_bins[0])
-        print(f"Using binary from: {bin_dir}")
-        os.makedirs(f"{WORK_DIR}/llama.cpp/build/bin", exist_ok=True)
-        subprocess.run(f"cp -r {bin_dir}/* {WORK_DIR}/llama.cpp/build/bin/", shell=True, check=True)
-        print("Copied pre-compiled binaries")
-cf_paths = glob.glob(f"{DATASET_BIN}/**/cloudflared", recursive=True)
-if cf_paths and not os.path.exists(f"{WORK_DIR}/cloudflared"):
-    subprocess.run(f"cp {cf_paths[0]} {WORK_DIR}/cloudflared && chmod +x {WORK_DIR}/cloudflared", shell=True, check=True)
+DATASET_BIN = "/kaggle/input/datasets/ballsapp/llama-cpp-sm75-bin"
+LLAMA_BIN = f"{DATASET_BIN}/llama.cpp/build/bin/llama-server"
+if os.path.exists(LLAMA_BIN) and not os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
+    print("Found pre-compiled llama.cpp in dataset — copying...")
+    os.makedirs(f"{WORK_DIR}/llama.cpp/build/bin", exist_ok=True)
+    subprocess.run(f"cp -r {DATASET_BIN}/llama.cpp/build/bin/* {WORK_DIR}/llama.cpp/build/bin/", shell=True, check=True)
+    print("Copied pre-compiled binaries")
+# Copy cloudflared
+CF_PATH = f"{DATASET_BIN}/cloudflared"
+if os.path.exists(CF_PATH) and not os.path.exists(f"{WORK_DIR}/cloudflared"):
+    subprocess.run(f"cp {CF_PATH} {WORK_DIR}/cloudflared && chmod +x {WORK_DIR}/cloudflared", shell=True, check=True)
     print("Copied pre-compiled cloudflared")
 
 if os.path.exists(f"{WORK_DIR}/llama.cpp/build/bin/llama-server"):
